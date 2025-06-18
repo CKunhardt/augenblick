@@ -1,0 +1,30 @@
+name: vggt
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - python=3.10
+  - pip=25.1
+  - pip:
+    - torchvision==0.18.1
+    - numpy==1.26.1
+    - Pillow
+    - huggingface_hub
+    - einops
+    - safetensors
+    - networkx
+    - opencv-python
+    - open3d
+    - matplotlib
+    - scikit-learn
+    - scipy
+    - tqdm
+    - hydra-core
+    - omegaconf
+    - onnxruntime
+    - requests
+    - trimesh
+    
+

@@ -1,0 +1,3 @@
+[submodule "src/NeuS2"]
+	path = src/NeuS2
+	url = https://github.com/19reborn/NeuS2
