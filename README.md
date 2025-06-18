@@ -67,13 +67,14 @@ cd augenblick
 conda env create -n augenblick -f environment.yml
 conda actiavte augenblick
 
-cd src/vggt
-pip install -r requirements.txt
-
-cd ../NeuS2
+cd src/NeuS2
 cmake . -B build
 # If above doesn't work, try: cmake . -B build -T v143,version=14.36
+# If still having issues, try copying the frame_fix.h from the config folder to the NeuS2 repo
 cmake --build build --config RelWithDebInfo -j 
+pip install -r requirements.txt
+
+cd ../vggt
 pip install -r requirements.txt
 
 cd ../data
@@ -102,8 +103,7 @@ photogrammetry-pipeline/
 
 ### Quick Start
 ```bash
-cd pipeline
-python run_pipeline.py --input_dir ../data/path/to/images --output_dir ../output
+python src/pipeline/run_pipeline.py ./data/path/to/images --output_dir ./output/
 ```
 ## Build Instructions
 
