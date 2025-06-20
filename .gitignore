@@ -1,5 +1,5 @@
 # Ignore data sets
-data/*
+data
 
 # Ignore output files
 output/*
