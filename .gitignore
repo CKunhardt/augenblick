@@ -156,3 +156,6 @@ skyseg.onnx
 # pixi environments
 .pixi
 *.egg-info
+
+# pytorch3d
+pytorch3d/

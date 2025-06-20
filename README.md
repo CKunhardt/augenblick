@@ -46,6 +46,7 @@ The VGG-T component processes input images to extract dense features and estimat
 - CUDA-capable GPU (recommended: RTX 3080 or better)
 - 16GB+ RAM
 - 50GB+ available storage
+- VS2019, if on Windows
 
 ### Dependencies
 VGG-T and NeuS2 must be configured individually within their subdirectories.
@@ -68,18 +69,27 @@ conda env create -n augenblick -f environment.yml
 conda actiavte augenblick
 
 cd src/NeuS2
+git submodule update --init --recursive
 cmake . -B build
-# If above doesn't work, try: cmake . -B build -T v143,version=14.36
-# If still having issues, try copying the frame_fix.h from the config folder to the NeuS2 repo
+# If above doesn't work, see Troubleshooting below
 cmake --build build --config RelWithDebInfo -j 
-pip install -r requirements.txt
-
-cd ../vggt
-pip install -r requirements.txt
 
 cd ../data
 # Install datasets here, i.e. https://roboimagedata.compute.dtu.dk/?page_id=36
 
+# Note: you will have to install pytorch3d manually
+# Depending on your platform, this can be varying degrees of complex
+
+# Windows:
+# First step is to clone the pytorch3d repo here, and then run the following
+# Note you need to be on an administrator Developer Command Prompt
+python config\\fix.py
+cd pytorch3d
+git checkout 3388d3
+rmdir /s /q pytorch3d\csrc\pulsar
+if exist pytorch3d\renderer\points\pulsar rmdir /s /q pytorch3d\renderer\points\pulsar
+call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+python build_pytorch3d_no_pulsar.py
 ```
 
 ## Project Structure
@@ -143,6 +153,24 @@ The pipeline generates several outputs:
 ### Processing Time Estimates
 
 ## Troubleshooting
+
+Windows is particularly troublesome for getting everything to play nice, especially since these libraries all need specific versions of their dependencies to work right
+You will likely benefit from running any build errors through GenAI. However, I have included some steps I needed to take on my platform (Win11, GTX 4070 GPU)
+
+Note that it is imperative that you run everything on Visual Studio 2019 and in the Developer Command Prompt
+
+### Install vcpkg & use to build NeuS2
+```
+cd C:\
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+.\vcpkg integrate install
+.\vcpkg install pthreads:x64-windows
+
+cd <this repo path>
+cmake . -B build -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+```
 
 ## Examples
 
