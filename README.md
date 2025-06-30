@@ -172,6 +172,9 @@ cd <this repo path>
 cmake . -B build -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
 ```
 
+You also may need to manually specify your CUDA include path in the main CMakeLists.txt file, so the conda environment headers do not override the CUDA headers during the build process.
+Locate this line in NeuS2's CMakeLists.txt: `add_library(pyngp SHARED src/python_api.cu)` and below it, add: `target_include_directories(pyngp PRIVATE "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.8/include")` (accounting for your path structure)
+
 ## Examples
 
 ### Sample Datasets
