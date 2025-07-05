@@ -1,84 +1,36 @@
 #!/usr/bin/env python3
 """
-Fixed NeuS2 Transform Generator
-Based on analysis of the NeuS2 run.py code and training requirements
+NeuS2 Transform Generator with Corrected Camera Positioning Logic
+
+This script generates transforms.json for NeuS2 training from a turntable setup with:
+- 3 fixed cameras in vertical line array
+- Object rotating on turntable (8° increments, 45 steps = 360°)
+- Sequential image naming (000000.jpg, 000001.jpg, etc.)
+
+Key fixes:
+1. Proper 4x4 transform matrix multiplication (not simple vector rotation)
+2. Two corrected approaches: inverse rotation vs same direction rotation
+3. No more elliptical camera paths - clean circular orbits
 """
 
-import numpy as np
+import os
 import json
 import argparse
-import math
+import numpy as np
 from pathlib import Path
-from PIL import Image
-import os
-import glob
+from typing import List, Dict, Tuple
 
-def get_image_dimensions(image_dir):
-    """Get image dimensions from the first image in the directory"""
-    if not os.path.exists(image_dir):
-        return None
+def create_camera_positions(distance_from_center: float = 2.0, camera_spacing: float = 0.5) -> List[Dict]:
+    """
+    Create camera positions for line array setup.
+    
+    Args:
+        distance_from_center: Distance of cameras from origin (object center)
+        camera_spacing: Vertical spacing between cameras
         
-    extensions = ['*.jpg', '*.jpeg', '*.png', '*.tiff', '*.tif', '*.bmp']
-    image_files = []
-    
-    for ext in extensions:
-        image_files.extend(glob.glob(os.path.join(image_dir, ext)))
-        image_files.extend(glob.glob(os.path.join(image_dir, ext.upper())))
-    
-    image_files.sort()
-    
-    if not image_files:
-        return None
-    
-    try:
-        with Image.open(image_files[0]) as img:
-            return img.size
-    except Exception as e:
-        print(f"Warning: Could not read image {image_files[0]}: {e}")
-        return None
-
-def create_camera_intrinsics(focal_length_mm=50, sensor_width_mm=35.9, sensor_height_mm=24.0, 
-                           image_width=1600, image_height=1200):
-    """Calculate camera intrinsics for Canon EOS RP"""
-    fx = (focal_length_mm / sensor_width_mm) * image_width
-    fy = (focal_length_mm / sensor_height_mm) * image_height
-    
-    cx = image_width / 2.0
-    cy = image_height / 2.0
-    
-    camera_angle_x = 2 * math.atan(sensor_width_mm / (2 * focal_length_mm))
-    camera_angle_y = 2 * math.atan(sensor_height_mm / (2 * focal_length_mm))
-    
-    return {
-        'fx': fx,
-        'fy': fy,
-        'cx': cx,
-        'cy': cy,
-        'camera_angle_x': camera_angle_x,
-        'camera_angle_y': camera_angle_y,
-        'k1': 0.0,
-        'k2': 0.0,
-        'k3': 0.0,
-        'k4': 0.0,
-        'p1': 0.0,
-        'p2': 0.0
-    }
-
-def create_rotation_matrix_y(angle_degrees):
-    """Create rotation matrix for Y-axis rotation (turntable)"""
-    theta = math.radians(angle_degrees)
-    cos_theta = math.cos(theta)
-    sin_theta = math.sin(theta)
-    
-    return np.array([
-        [cos_theta, 0, sin_theta, 0],
-        [0, 1, 0, 0],
-        [-sin_theta, 0, cos_theta, 0],
-        [0, 0, 0, 1]
-    ])
-
-def create_camera_positions(distance_from_center=2.0, camera_spacing=0.5):
-    """Create camera positions for line array setup"""
+    Returns:
+        List of camera configurations with position and transform matrix
+    """
     camera_configs = []
     
     # Camera positions in line array (stacked vertically)
@@ -90,10 +42,10 @@ def create_camera_positions(distance_from_center=2.0, camera_spacing=0.5):
     
     for i, pos in enumerate(base_positions):
         camera_pos = pos[:3]
-        look_at = np.array([0, 0, 0])
-        up = np.array([0, 0, 1])
+        look_at = np.array([0, 0, 0])  # All cameras look at object center
+        up = np.array([0, 0, 1])       # Z-up coordinate system
         
-        # Calculate camera orientation
+        # Calculate camera orientation using standard camera coordinate system
         forward = look_at - camera_pos
         forward = forward / np.linalg.norm(forward)
         
@@ -103,11 +55,11 @@ def create_camera_positions(distance_from_center=2.0, camera_spacing=0.5):
         camera_up = np.cross(right, forward)
         camera_up = camera_up / np.linalg.norm(camera_up)
         
-        # Create 4x4 transform matrix (camera-to-world)
+        # Create 4x4 camera-to-world transform matrix
         transform = np.eye(4)
         transform[0, :3] = right
         transform[1, :3] = camera_up  
-        transform[2, :3] = -forward
+        transform[2, :3] = -forward  # Camera looks down negative Z
         transform[:3, 3] = camera_pos
         
         camera_configs.append({
@@ -118,251 +70,367 @@ def create_camera_positions(distance_from_center=2.0, camera_spacing=0.5):
     
     return camera_configs
 
-def apply_neus2_coordinate_transform(transform):
+def create_rotation_matrix_y(angle_degrees: float) -> np.ndarray:
     """
-    Apply coordinate system transform specifically for NeuS2
-    Based on the reference transforms.json format
-    """
-    # NeuS2 seems to use a different coordinate convention
-    # Looking at the reference, we need to match that exactly
+    Create 4x4 rotation matrix for Y-axis rotation (turntable rotation).
     
-    # Apply the coordinate system conversion
-    flip_matrix = np.array([
-        [1, 0, 0, 0],
-        [0, -1, 0, 0], 
-        [0, 0, -1, 0],
+    Args:
+        angle_degrees: Rotation angle in degrees
+        
+    Returns:
+        4x4 rotation matrix
+    """
+    theta = np.radians(angle_degrees)
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    
+    return np.array([
+        [cos_theta, 0, sin_theta, 0],
+        [0, 1, 0, 0],
+        [-sin_theta, 0, cos_theta, 0],
         [0, 0, 0, 1]
     ])
-    
-    return np.dot(transform, flip_matrix)
 
-def setup_mask_directory(image_dir, mask_dir):
+def generate_transforms_inverse_rotation(
+    image_dir: str,
+    num_cameras: int = 3,
+    rotation_steps: int = 45,
+    rotation_increment: float = 8.0,
+    distance_from_center: float = 2.0,
+    camera_spacing: float = 0.5,
+    focal_length: float = 1100.0,
+    image_width: int = 1024,
+    image_height: int = 768
+) -> Dict:
     """
-    Set up mask directory structure that NeuS2 expects
+    Generate transforms using INVERSE ROTATION approach with SEQUENTIAL camera organization.
+    
+    File organization (CORRECTED):
+    - 000000-000044: Camera 1 (45 rotation steps, height -0.5)
+    - 000046-000090: Camera 2 (45 rotation steps, height 0.0) [skipping 000045]
+    - 000092-000135: Camera 3 (44 rotation steps, height +0.5) [skipping 000091]
+    
+    Each camera captures the full 360° rotation at its own height.
     """
-    if not mask_dir or not os.path.exists(mask_dir):
-        return None
+    print("Generating transforms with INVERSE ROTATION and sequential organization...")
+    print("Object rotates clockwise → Cameras orbit counter-clockwise relative to object")
     
-    # NeuS2 expects masks in the same directory structure as images
-    # Let's verify the mask setup
-    image_files = []
-    mask_files = []
-    
-    extensions = ['*.jpg', '*.jpeg', '*.png', '*.tiff', '*.tif', '*.bmp']
-    
-    for ext in extensions:
-        image_files.extend(glob.glob(os.path.join(image_dir, ext)))
-        image_files.extend(glob.glob(os.path.join(image_dir, ext.upper())))
-        mask_files.extend(glob.glob(os.path.join(mask_dir, ext)))
-        mask_files.extend(glob.glob(os.path.join(mask_dir, ext.upper())))
-    
-    image_files.sort()
-    mask_files.sort()
-    
-    print(f"Found {len(image_files)} images and {len(mask_files)} masks")
-    
-    return len(mask_files) > 0
-
-def generate_neus2_transforms(image_dir, mask_dir=None, output_path="transforms.json",
-                             num_rotation_steps=45, rotation_step_degrees=8, 
-                             image_width=None, image_height=None,
-                             distance_from_center=2.0, camera_spacing=0.5,
-                             aabb_scale=4, scale=0.5):
-    """
-    Generate transforms.json specifically for NeuS2
-    """
-    
-    # Auto-detect image dimensions
-    if image_width is None or image_height is None:
-        detected_dims = get_image_dimensions(image_dir)
-        if detected_dims:
-            image_width, image_height = detected_dims
-            print(f"Auto-detected image dimensions: {image_width} x {image_height}")
-        else:
-            image_width = image_width or 1600
-            image_height = image_height or 1200
-            print(f"Using default dimensions: {image_width} x {image_height}")
-    
-    # Check mask setup
-    has_masks = setup_mask_directory(image_dir, mask_dir)
-    
-    # Calculate camera intrinsics
-    intrinsics = create_camera_intrinsics(image_width=image_width, image_height=image_height)
-    
-    # Get camera positions
     camera_configs = create_camera_positions(distance_from_center, camera_spacing)
     
-    # Create the transforms JSON structure for NeuS2
+    # Get list of images
+    image_files = sorted([f for f in os.listdir(image_dir) 
+                         if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+    
+    if len(image_files) == 0:
+        raise ValueError(f"No image files found in {image_dir}")
+    
+    print(f"Found {len(image_files)} images")
+    
+    frames = []
+    
+    # Camera 1: 000000-000044 (45 images, height -0.5)
+    camera_1_config = camera_configs[0]  # Bottom camera (-0.5 height)
+    for step in range(45):
+        if step >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        # INVERSE rotation: object rotates +8°, cameras appear to rotate -8° relative to object
+        inverse_rotation_matrix = create_rotation_matrix_y(-rotation_angle)
+        
+        # Apply inverse rotation to camera 1's transform
+        relative_transform = np.dot(inverse_rotation_matrix, camera_1_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[step],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera 2: 000046-000090 (45 images, height 0.0, skipping 000045)
+    camera_2_config = camera_configs[1]  # Middle camera (0.0 height)
+    camera_2_start = 45  # Start after camera 1, but skip 000045
+    for step in range(45):
+        image_idx = camera_2_start + step
+        if image_idx >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        inverse_rotation_matrix = create_rotation_matrix_y(-rotation_angle)
+        
+        # Apply inverse rotation to camera 2's transform
+        relative_transform = np.dot(inverse_rotation_matrix, camera_2_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[image_idx],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera 3: 000092-000135 (44 images, height +0.5, skipping 000091)
+    camera_3_config = camera_configs[2]  # Top camera (+0.5 height)
+    camera_3_start = 91  # Start after camera 2, but skip 000091
+    for step in range(45):  # Only 44 steps for camera 3
+        image_idx = camera_3_start + step
+        if image_idx >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        inverse_rotation_matrix = create_rotation_matrix_y(-rotation_angle)
+        
+        # Apply inverse rotation to camera 3's transform
+        relative_transform = np.dot(inverse_rotation_matrix, camera_3_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[image_idx],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera intrinsics
+    fl_x = fl_y = focal_length
+    cx = image_width / 2.0
+    cy = image_height / 2.0
+    
     transforms_data = {
-        "w": int(image_width),
-        "h": int(image_height),
-        "aabb_scale": aabb_scale,
-        "scale": scale,
-        "offset": [0.5, 0.5, 0.5],
-        "frames": []
+        "camera_angle_x": 2 * np.arctan(image_width / (2 * fl_x)),
+        "camera_angle_y": 2 * np.arctan(image_height / (2 * fl_y)),
+        "fl_x": fl_x,
+        "fl_y": fl_y,
+        "cx": cx,
+        "cy": cy,
+        "w": image_width,
+        "h": image_height,
+        "frames": frames
     }
     
-    # Add camera parameters (NeuS2 format)
-    transforms_data.update({
-        "camera_angle_x": intrinsics['camera_angle_x'],
-        "camera_angle_y": intrinsics['camera_angle_y'],
-        "fl_x": intrinsics['fx'],
-        "fl_y": intrinsics['fy'],
-        "k1": intrinsics['k1'],
-        "k2": intrinsics['k2'],
-        "k3": intrinsics['k3'], 
-        "k4": intrinsics['k4'],
-        "p1": intrinsics['p1'],
-        "p2": intrinsics['p2'],
-        "cx": intrinsics['cx'],
-        "cy": intrinsics['cy'],
-        "is_fisheye": False
-    })
-    
-    frame_idx = 0
-    
-    # Generate frames
-    for rotation_step in range(num_rotation_steps):
-        rotation_angle = rotation_step * rotation_step_degrees
-        rotation_matrix = create_rotation_matrix_y(rotation_angle)
-        
-        for cam_idx, camera_config in enumerate(camera_configs):
-            # Apply turntable rotation
-            world_transform = np.dot(rotation_matrix, camera_config['transform'])
-            
-            # Apply NeuS2 coordinate system transformation
-            final_transform = apply_neus2_coordinate_transform(world_transform)
-            
-            # Create frame entry (simplified for NeuS2)
-            frame = {
-                "file_path": f"images/{frame_idx:06d}.png",
-                "transform_matrix": final_transform.tolist()
-            }
-            
-            # Add per-frame intrinsics (NeuS2 supports this)
-            intrinsic_matrix = [
-                [intrinsics['fx'], 0.0, intrinsics['cx'], 0.0],
-                [0.0, intrinsics['fy'], intrinsics['cy'], 0.0], 
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0]
-            ]
-            frame["intrinsic_matrix"] = intrinsic_matrix
-            
-            transforms_data["frames"].append(frame)
-            frame_idx += 1
-    
-    # Write to file
-    with open(output_path, 'w') as f:
-        json.dump(transforms_data, f, indent=2)
-    
-    print(f"\n=== NeuS2 Transform Generation Complete ===")
-    print(f"Generated transforms.json with {len(transforms_data['frames'])} frames")
-    print(f"Image dimensions: {image_width} x {image_height}")
-    print(f"AABB scale: {aabb_scale}")
-    print(f"Masks detected: {'Yes' if has_masks else 'No'}")
-    print(f"Saved to: {output_path}")
-    
+    print(f"Generated {len(frames)} camera poses using inverse rotation")
     return transforms_data
 
-def create_neus2_training_script(data_dir, output_name="neus2_test"):
+def generate_transforms_same_direction(
+    image_dir: str,
+    num_cameras: int = 3,
+    rotation_steps: int = 45,
+    rotation_increment: float = 8.0,
+    distance_from_center: float = 2.0,
+    camera_spacing: float = 0.5,
+    focal_length: float = 1100.0,
+    image_width: int = 1024,
+    image_height: int = 768
+) -> Dict:
     """
-    Create a training script for NeuS2
+    Generate transforms using SAME DIRECTION approach with SEQUENTIAL camera organization.
+    
+    File organization (CORRECTED):
+    - 000000-000044: Camera 1 (45 rotation steps, height -0.5)
+    - 000046-000090: Camera 2 (45 rotation steps, height 0.0) [skipping 000045]
+    - 000092-000135: Camera 3 (44 rotation steps, height +0.5) [skipping 000091]
+    
+    Each camera captures the full 360° rotation at its own height.
     """
-    script_content = f"""#!/bin/bash
-
-# NeuS2 Training Script
-# Generated for data directory: {data_dir}
-
-echo "Starting NeuS2 training..."
-
-# Basic training command
-python run.py \\
-    --name {output_name} \\
-    --scene {data_dir} \\
-    --mode nerf \\
-    --n_steps 5000 \\
-    --save_mesh \\
-    --marching_cubes_res 256
-
-echo "Training complete! Check output/{output_name}/ for results"
-
-# Optional: Run evaluation
-# python run.py \\
-#     --name {output_name} \\
-#     --scene {data_dir} \\
-#     --test \\
-#     --load_snapshot output/{output_name}/checkpoints/5000.msgpack \\
-#     --save_mesh \\
-#     --marching_cubes_res 512
-"""
+    print("Generating transforms with SEQUENTIAL camera organization...")
+    print("Camera 1: all rotation steps at height -0.5")
+    print("Camera 2: all rotation steps at height 0.0") 
+    print("Camera 3: all rotation steps at height +0.5")
     
-    with open("train_neus2.sh", "w") as f:
-        f.write(script_content)
+    camera_configs = create_camera_positions(distance_from_center, camera_spacing)
     
-    os.chmod("train_neus2.sh", 0o755)
-    print("Created training script: train_neus2.sh")
+    # Get list of images
+    image_files = sorted([f for f in os.listdir(image_dir) 
+                         if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+    
+    if len(image_files) == 0:
+        raise ValueError(f"No image files found in {image_dir}")
+    
+    print(f"Found {len(image_files)} images")
+    
+    frames = []
+    
+    # Camera 1: 000000-000044 (45 images, height -0.5)
+    camera_1_config = camera_configs[0]  # Bottom camera (-0.5 height)
+    for step in range(45):
+        if step >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        rotation_matrix = create_rotation_matrix_y(rotation_angle)
+        
+        # Apply rotation to camera 1's transform
+        relative_transform = np.dot(rotation_matrix, camera_1_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[step],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera 2: 000046-000090 (45 images, height 0.0, skipping 000045)
+    camera_2_config = camera_configs[1]  # Middle camera (0.0 height)
+    camera_2_start = 45  # Start after camera 1, but skip 000045
+    for step in range(45):
+        image_idx = camera_2_start + step
+        if image_idx >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        rotation_matrix = create_rotation_matrix_y(rotation_angle)
+        
+        # Apply rotation to camera 2's transform
+        relative_transform = np.dot(rotation_matrix, camera_2_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[image_idx],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera 3: 000092-000136 (45 images, height +0.5, skipping 000091)
+    camera_3_config = camera_configs[2]  # Top camera (+0.5 height)
+    camera_3_start = 90  # Start after camera 2, but skip 000091
+    for step in range(45): 
+        image_idx = camera_3_start + step
+        if image_idx >= len(image_files):
+            break
+        
+        rotation_angle = step * rotation_increment
+        rotation_matrix = create_rotation_matrix_y(rotation_angle)
+        
+        # Apply rotation to camera 3's transform
+        relative_transform = np.dot(rotation_matrix, camera_3_config['transform'])
+        
+        frame_data = {
+            "file_path": image_files[image_idx],
+            "transform_matrix": relative_transform.tolist()
+        }
+        frames.append(frame_data)
+    
+    # Camera intrinsics
+    fl_x = fl_y = focal_length
+    cx = image_width / 2.0
+    cy = image_height / 2.0
+    
+    transforms_data = {
+        "camera_angle_x": 2 * np.arctan(image_width / (2 * fl_x)),
+        "camera_angle_y": 2 * np.arctan(image_height / (2 * fl_y)),
+        "fl_x": fl_x,
+        "fl_y": fl_y,
+        "cx": cx,
+        "cy": cy,
+        "w": image_width,
+        "h": image_height,
+        "frames": frames
+    }
+    
+    print(f"Generated {len(frames)} camera poses with sequential organization")
+    return transforms_data
+
+def validate_transforms(transforms_data: Dict) -> None:
+    """
+    Validate the generated transforms and print diagnostics.
+    """
+    frames = transforms_data['frames']
+    positions = []
+    
+    for frame in frames:
+        transform = np.array(frame['transform_matrix'])
+        pos = transform[:3, 3]  # Extract translation
+        positions.append(pos)
+    
+    positions = np.array(positions)
+    
+    print(f"\n=== Transform Validation ===")
+    print(f"Total frames: {len(frames)}")
+    print(f"Camera positions range:")
+    print(f"  X: [{positions[:, 0].min():.3f}, {positions[:, 0].max():.3f}]")
+    print(f"  Y: [{positions[:, 1].min():.3f}, {positions[:, 1].max():.3f}]")
+    print(f"  Z: [{positions[:, 2].min():.3f}, {positions[:, 2].max():.3f}]")
+    
+    # Check for circular pattern
+    distances = np.linalg.norm(positions, axis=1)
+    print(f"Distance from origin: [{distances.min():.3f}, {distances.max():.3f}]")
+    
+    # Check if we have 3 distinct height levels
+    unique_z = np.unique(np.round(positions[:, 2], 3))
+    print(f"Camera height levels: {len(unique_z)} ({unique_z})")
+    
+    if len(unique_z) == 3:
+        print("✓ Detected 3 camera height levels (vertical line array)")
+    else:
+        print("⚠ Warning: Expected 3 camera height levels")
+    
+    # Check for circular motion in X-Y plane
+    x_range = positions[:, 0].max() - positions[:, 0].min()
+    y_range = positions[:, 1].max() - positions[:, 1].min()
+    
+    if x_range > 2.0 and y_range > 2.0:
+        print("✓ Detected circular camera motion (good for NeRF)")
+    else:
+        print("⚠ Warning: Camera motion may not be sufficiently circular")
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate NeuS2-specific transforms.json")
-    
-    parser.add_argument("--image_dir", type=str, required=True,
-                       help="Path to directory containing input images")
-    parser.add_argument("--mask_dir", type=str, default=None,
-                       help="Path to directory containing mask images")
-    parser.add_argument("--output", type=str, default="transforms.json",
-                       help="Output transforms.json path")
-    
-    parser.add_argument("--width", type=int, default=None,
-                       help="Image width (auto-detected if not specified)")
-    parser.add_argument("--height", type=int, default=None, 
-                       help="Image height (auto-detected if not specified)")
-    
-    parser.add_argument("--rotation_steps", type=int, default=45, 
-                       help="Number of rotation positions")
-    parser.add_argument("--rotation_degrees", type=float, default=8.0,
-                       help="Degrees per rotation step")
-    
-    parser.add_argument("--distance", type=float, default=2.0,
-                       help="Camera distance from center in meters")
-    parser.add_argument("--spacing", type=float, default=0.5,
-                       help="Camera spacing in meters")
-    
-    parser.add_argument("--aabb_scale", type=int, default=4,
-                       help="Scene bounding box scale")
-    parser.add_argument("--scale", type=float, default=0.5,
-                       help="Global scene scale")
-    
-    parser.add_argument("--create_training_script", action="store_true",
-                       help="Create a training script for NeuS2")
+    parser = argparse.ArgumentParser(description="Generate NeuS2 transforms.json with corrected camera positioning")
+    parser.add_argument("--image_dir", type=str, required=True, help="Directory containing sequential images")
+    parser.add_argument("--output", type=str, default="transforms.json", help="Output transforms file")
+    parser.add_argument("--approach", type=str, choices=["inverse", "same"], default="same",
+                       help="Rotation approach: 'inverse' (counter-clockwise) or 'same' (clockwise)")
+    parser.add_argument("--distance", type=float, default=2.0, help="Camera distance from center")
+    parser.add_argument("--spacing", type=float, default=0.5, help="Vertical spacing between cameras")
+    parser.add_argument("--focal_length", type=float, default=1100.0, help="Camera focal length")
+    parser.add_argument("--width", type=int, default=1024, help="Image width")
+    parser.add_argument("--height", type=int, default=768, help="Image height")
+    parser.add_argument("--rotation_steps", type=int, default=45, help="Number of rotation steps")
+    parser.add_argument("--rotation_increment", type=float, default=8.0, help="Degrees per rotation step")
     
     args = parser.parse_args()
     
-    # Generate transforms
-    generate_neus2_transforms(
-        image_dir=args.image_dir,
-        mask_dir=args.mask_dir,
-        output_path=args.output,
-        num_rotation_steps=args.rotation_steps,
-        rotation_step_degrees=args.rotation_degrees,
-        image_width=args.width,
-        image_height=args.height,
-        distance_from_center=args.distance,
-        camera_spacing=args.spacing,
-        aabb_scale=args.aabb_scale,
-        scale=args.scale
-    )
+    if not os.path.exists(args.image_dir):
+        raise ValueError(f"Image directory not found: {args.image_dir}")
     
-    # Create training script if requested
-    if args.create_training_script:
-        data_dir = os.path.dirname(args.output) if os.path.dirname(args.output) else "."
-        create_neus2_training_script(data_dir)
+    print(f"NeuS2 Transform Generator (Corrected)")
+    print(f"=====================================")
+    print(f"Image directory: {args.image_dir}")
+    print(f"Output file: {args.output}")
+    print(f"Approach: {args.approach} rotation")
+    print(f"Camera setup: 3 cameras, {args.distance}m from center, {args.spacing}m vertical spacing")
+    print(f"Turntable: {args.rotation_steps} steps × {args.rotation_increment}° = {args.rotation_steps * args.rotation_increment}°")
     
-    print(f"\n=== Next Steps ===")
-    print(f"1. Place your images in: {args.image_dir}")
-    if args.mask_dir:
-        print(f"2. Place your masks in: {args.mask_dir}")
-    print(f"3. Run NeuS2 training:")
-    print(f"   python run.py --name test --scene . --n_steps 5000 --save_mesh")
+    # Generate transforms using selected approach
+    if args.approach == "inverse":
+        transforms_data = generate_transforms_inverse_rotation(
+            args.image_dir,
+            rotation_steps=args.rotation_steps,
+            rotation_increment=args.rotation_increment,
+            distance_from_center=args.distance,
+            camera_spacing=args.spacing,
+            focal_length=args.focal_length,
+            image_width=args.width,
+            image_height=args.height
+        )
+    else:  # same direction
+        transforms_data = generate_transforms_same_direction(
+            args.image_dir,
+            rotation_steps=args.rotation_steps,
+            rotation_increment=args.rotation_increment,
+            distance_from_center=args.distance,
+            camera_spacing=args.spacing,
+            focal_length=args.focal_length,
+            image_width=args.width,
+            image_height=args.height
+        )
+    
+    # Validate the results
+    validate_transforms(transforms_data)
+    
+    # Save transforms.json
+    with open(args.output, 'w') as f:
+        json.dump(transforms_data, f, indent=2)
+    
+    print(f"\n✓ Transforms saved to {args.output}")
+    print(f"Ready for NeuS2 training!")
+    print(f"\nNext steps:")
+    print(f"1. python run.py --name test --scene . --n_steps 1000 --save_mesh")
+    print(f"2. Check if {args.approach} rotation approach works well")
+    print(f"3. If not, try the other approach: --approach {'same' if args.approach == 'inverse' else 'inverse'}")
 
 if __name__ == "__main__":
     main()
