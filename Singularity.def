@@ -1,0 +1,90 @@
+BootStrap: docker
+From: nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+%environment
+    export CUDA_HOME=/usr/local/cuda
+    export CUDA_PATH=/usr/local/cuda
+    export PATH=/usr/local/cuda/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+    export PYTHONPATH=/workspace/augenblick/src:/workspace/augenblick/src/NeuS2:$PYTHONPATH
+    export CMAKE_PREFIX_PATH=/opt/optix:$CMAKE_PREFIX_PATH
+    export CPLUS_INCLUDE_PATH=/opt/optix/include:$CPLUS_INCLUDE_PATH
+    export LIBRARY_PATH=/opt/optix/lib64:$LIBRARY_PATH
+    export OptiX_INSTALL_DIR=/opt/optix
+    export OPTIX_ROOT_DIR=/opt/optix
+    export TCNN_CUDA_ARCHITECTURES="75 80 86 89 90"
+
+%post
+    # Update and install system dependencies
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        git build-essential cmake python3.10 python3.10-dev python3.10-venv python3-pip \
+        wget unzip curl \
+        libgl1-mesa-dev libglu1-mesa-dev \
+        libglfw3-dev libglew-dev \
+        libeigen3-dev libboost-all-dev \
+        libopencv-dev libopenexr-dev \
+        libxi-dev libxxf86vm-dev libxinerama-dev libxcursor-dev \
+        xorg-dev \
+        ninja-build \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Set up Python
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+    python -m pip install --upgrade pip
+
+    # Install PyTorch with CUDA 12.1 support (pinned for reproducibility)
+    pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+
+    # Install Python dependencies
+    pip install numpy scipy imageio tqdm matplotlib pybind11 opencv-python \
+        trimesh pymeshlab open3d scikit-image lpips tensorboard \
+        configargparse
+
+    # Install tiny-cuda-nn (required for instant-ngp/pyngp)
+    pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+    # Create OptiX directory structure (will be bind-mounted at runtime)
+    mkdir -p /opt/optix
+
+    # Pre-create build directory
+    mkdir -p /workspace/augenblick/build
+
+    # Clean up
+    apt-get clean
+    rm -rf /tmp/*
+
+%labels
+    Maintainer "James R. Hennessy"
+    Version "1.0"
+    Purpose "NeuS2 + pyngp + OptiX CUDA container"
+    CUDA_Version "12.1"
+    OptiX_Version "9.0.0 (bind-mounted)"
+    PyTorch_Version "2.3.1 with CUDA 12.1"
+
+%runscript
+    echo "NeuS2 + pyngp + OptiX Container"
+    echo "================================"
+    echo "CUDA Version: $(nvcc --version | grep release | awk '{print $6}')"
+    echo "OptiX Location: $OptiX_INSTALL_DIR (bind-mounted)"
+    echo ""
+    echo "Usage:"
+    echo "  singularity exec --nv \\"
+    echo "    -B \$HOME/augenblick:/workspace/augenblick \\"
+    echo "    -B \$HOME/NVIDIA-OptiX-SDK-9.0.0-linux64-x86_64:/opt/optix \\"
+    echo "    neus2.sif bash"
+    echo ""
+    echo "To build NeuS2/pyngp inside the container:"
+    echo "  cd /workspace/augenblick"
+    echo "  mkdir build && cd build"
+    echo "  cmake .. -DCMAKE_BUILD_TYPE=Release"
+    echo "  make -j\$(nproc)"
+
+%test
+    # Basic tests to verify the container
+    python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+    python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+    nvcc --version
+    cmake --version
+    ls /opt/optix/lib64/liboptix.so || echo "WARNING: OptiX not found"
+

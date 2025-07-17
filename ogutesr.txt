@@ -1,0 +1,62 @@
+Input directory: /home/jhennessy7.gatech/scratch/test_run/temp_input
+Images directory: /home/jhennessy7.gatech/scratch/test_run/temp_input/images
+Output directory: /home/jhennessy7.gatech/scratch/test_run
+Found 276 images
+
+✓ Found existing VGG-T predictions: /home/jhennessy7.gatech/scratch/test_run/vggt_output/vggt_predictions_1752432185.pkl
+Skipping VGG-T extraction (use --force-rerun to reprocess)
+
+============================================================
+STEP 2: Converting to Neuralangelo Format
+============================================================
+  - Scene bounds: min=[-1.2362483 -0.725612   0.5755552], max=[1.0047231  0.77414465 2.5263093 ]
+  - Scene center: [-0.11576259  0.02426633  1.5509322 ]
+  - Scene scale: 2.240971326828003
+Created Neuralangelo data directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data
+  - Images: 276 files
+  - Transforms: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data/transforms.json
+  - Processed 138 frames
+  - First camera: fx=592.63, fy=591.76
+
+Conversion completed in 6.86 seconds
+
+============================================================
+STEP 3: Checking Neuralangelo Data Format
+============================================================
+VGG-T already provided camera poses, skipping COLMAP preprocessing
+Data prepared at: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+
+Preprocessing completed in 6.03 seconds
+
+============================================================
+STEP 4: Running Neuralangelo Neural Surface Reconstruction
+============================================================
+Found training script: train.py
+Creating custom config from template: projects/neuralangelo/configs/custom/template.yaml
+Created custom config: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+  - Data root: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+  - Number of images: 276
+  - Max iterations: 20000
+Running: /blue/arthur.porto-biocosmos/jhennessy7.gatech/.conda/envs/augenblick/bin/python3 train.py --config /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml --logdir /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output --single_gpu
+Training for 20000 iterations...
+Config file: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+Log directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output
+* step: 5000
+* iteration_mode: True
+* step_size: 9999999999
+* two_steps: [300000, 400000]
+* type: two_steps_with_warmup
+* start_iteration: 0
+* loss_weight:
+preloading cameras (train):   0%|          | 0/138 [00:00<?, ?it/s]Exception in thread Thread-6 (_preload_worker):
+Traceback (most recent call last):
+Exception in thread Thread-7 (_preload_worker):
+Traceback (most recent call last):
+Exception in thread Thread-8 (_preload_worker):
+Traceback (most recent call last):
+Exception in thread Thread-9 (_preload_worker):
+Traceback (most recent call last):
+KeyError: 'fl_x'
+KeyError: 'fl_x'
+KeyError: 'fl_x'
+KeyError: 'fl_x'

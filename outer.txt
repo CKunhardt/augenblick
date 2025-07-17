@@ -1,0 +1,351 @@
+Input directory: /home/jhennessy7.gatech/scratch/test_run/temp_input
+Images directory: /home/jhennessy7.gatech/scratch/test_run/temp_input/images
+Output directory: /home/jhennessy7.gatech/scratch/test_run
+Found 276 images
+
+✓ Found existing VGG-T predictions: /home/jhennessy7.gatech/scratch/test_run/vggt_output/vggt_predictions_1752432185.pkl
+Skipping VGG-T extraction (use --force-rerun to reprocess)
+
+============================================================
+STEP 2: Converting to Neuralangelo Format
+============================================================
+  - Scene bounds: min=[-1.2362483 -0.725612   0.5755552], max=[1.0047231  0.77414465 2.5263093 ]
+  - Scene center: [-0.11576259  0.02426633  1.5509322 ]
+  - Scene scale: 2.240971326828003
+Created Neuralangelo data directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data
+  - Images: 276 files
+  - Transforms: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data/transforms.json
+  - Processed 276 frames
+  - First camera: fx=592.63, fy=591.76
+
+Conversion completed in 6.68 seconds
+
+============================================================
+STEP 3: Checking Neuralangelo Data Format
+============================================================
+VGG-T already provided camera poses, skipping COLMAP preprocessing
+Data prepared at: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+
+Preprocessing completed in 5.66 seconds
+
+============================================================
+STEP 4: Running Neuralangelo Neural Surface Reconstruction
+============================================================
+Found training script: train.py
+Creating custom config from template: projects/neuralangelo/configs/custom/template.yaml
+Created custom config: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+  - Data root: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+  - Number of images: 276
+  - Max iterations: 20000
+Running: /blue/arthur.porto-biocosmos/jhennessy7.gatech/.conda/envs/augenblick/bin/python3 train.py --config /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml --logdir /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output --single_gpu
+Training for 20000 iterations...
+Config file: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+Log directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output
+* step: 5000
+* iteration_mode: True
+* step_size: 9999999999
+* two_steps: [300000, 400000]
+* type: two_steps_with_warmup
+* start_iteration: 0
+* loss_weight:
+Traceback (most recent call last):
+ModuleNotFoundError: No module named 'projects.neuralangelo'
+
+============================================================
+Training failed with full error output:
+============================================================
+* type: imaginaire.datasets.images
+* timeout_period: 9999999
+* trainer:
+* amp_config:
+* backoff_factor: 0.5
+* enabled: False
+* growth_factor: 2.0
+* growth_interval: 2000
+* init_scale: 65536.0
+* ddp_config:
+* find_unused_parameters: False
+* static_graph: True
+* depth_vis_scale: 0.5
+* ema_config:
+* beta: 0.9999
+* enabled: False
+* load_ema_checkpoint: False
+* start_iteration: 0
+* grad_accum_iter: 1
+* image_to_tensorboard: False
+* init:
+* gain: None
+* type: none
+* loss_weight:
+* curvature: 0.0005
+* eikonal: 0.1
+* render: 1.0
+* type: projects.neuralangelo.trainer
+* validation_iter: 5000
+* wandb_image_iter: 10000
+* wandb_scalar_iter: 100
+cudnn benchmark: True
+cudnn deterministic: False
+Traceback (most recent call last):
+File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 104, in <module>
+main()
+File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 79, in main
+trainer = get_trainer(cfg, is_inference=False, seed=args.seed)
+File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/imaginaire/trainers/utils/get_trainer.py", line 31, in get_trainer
+trainer_lib = importlib.import_module(cfg.trainer.type)
+File "/blue/arthur.porto-biocosmos/jhennessy7.gatech/.conda/envs/augenblick/lib/python3.10/importlib/__init__.py", line 126, in import_module
+return _bootstrap._gcd_import(name[level:], package, level)
+File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+File "<frozen importlib._bootstrap>", line 992, in _find_and_load_unlocked
+File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+File "<frozen importlib._bootstrap>", line 1004, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'projects.neuralangelo'
+============================================================
+
+Trying to get more detailed error...
+STDERR:
+Traceback (most recent call last):
+  File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 104, in <module>
+    main()
+  File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 79, in main
+    trainer = get_trainer(cfg, is_inference=False, seed=args.seed)
+  File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/imaginaire/trainers/utils/get_trainer.py", line 31, in get_trainer
+    trainer_lib = importlib.import_module(cfg.trainer.type)
+  File "/blue/arthur.porto-biocosmos/jhennessy7.gatech/.conda/envs/augenblick/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 992, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1004, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'projects.neuralangelo'
+
+STDOUT:
+Training with 1 GPUs.
+Using random seed 0
+Make folder /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output
+* checkpoint:
+   * save_epoch: 9999999999
+   * save_iter: 20000
+   * save_latest_iter: 9999999999
+   * save_period: 9999999999
+   * strict_resume: True
+* cudnn:
+   * benchmark: True
+   * deterministic: False
+* data:
+   * name: dummy
+   * num_images: 276
+   * num_workers: 4
+   * preload: True
+   * readjust:
+      * center: [0.0, 0.0, 0.0]
+      * scale: 1.0
+   * root: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+   * train:
+      * batch_size: 1
+      * image_size: [350, 518]
+      * subset: None
+   * type: projects.neuralangelo.data
+   * use_multi_epoch_loader: True
+   * val:
+      * batch_size: 1
+      * image_size: [300, 400]
+      * max_viz_samples: None
+      * subset: 1
+* image_save_iter: 9999999999
+* inference_args:
+* local_rank: 0
+* logdir: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output
+* logging_iter: 9999999999999
+* max_epoch: 9999999999
+* max_iter: 500000
+* metrics_epoch: None
+* metrics_iter: None
+* model:
+   * appear_embed:
+      * dim: 8
+      * enabled: True
+   * background:
+      * enabled: True
+      * encoding:
+         * levels: 10
+         * type: fourier
+      * encoding_view:
+         * levels: 3
+         * type: spherical
+      * mlp:
+         * activ: relu
+         * activ_density: softplus
+         * activ_density_params:
+         * activ_params:
+         * hidden_dim: 256
+         * hidden_dim_rgb: 128
+         * num_layers: 8
+         * num_layers_rgb: 2
+         * skip: [4]
+         * skip_rgb: []
+      * view_dep: True
+      * white: False
+   * object:
+      * rgb:
+         * encoding_view:
+            * levels: 3
+            * type: spherical
+         * mlp:
+            * activ: relu_
+            * activ_params:
+            * hidden_dim: 256
+            * num_layers: 4
+            * skip: []
+            * weight_norm: True
+         * mode: idr
+      * s_var:
+         * anneal_end: 0.1
+         * init_val: 3.0
+      * sdf:
+         * encoding:
+            * coarse2fine:
+               * enabled: True
+               * init_active_level: 8
+               * step: 5000
+            * hashgrid:
+               * dict_size: 22
+               * dim: 8
+               * max_logres: 11
+               * min_logres: 5
+               * range: [-2, 2]
+            * levels: 16
+            * type: hashgrid
+         * gradient:
+            * mode: numerical
+            * taps: 4
+         * mlp:
+            * activ: softplus
+            * activ_params:
+               * beta: 100
+            * geometric_init: True
+            * hidden_dim: 256
+            * inside_out: False
+            * num_layers: 1
+            * out_bias: 0.5
+            * skip: []
+            * weight_norm: True
+   * render:
+      * num_sample_hierarchy: 4
+      * num_samples:
+         * background: 32
+         * coarse: 64
+         * fine: 16
+      * rand_rays: 512
+      * stratified: True
+   * type: projects.neuralangelo.model
+* nvtx_profile: False
+* optim:
+   * fused_opt: False
+   * params:
+      * lr: 0.001
+      * weight_decay: 0.01
+   * sched:
+      * gamma: 10.0
+      * iteration_mode: True
+      * step_size: 9999999999
+      * two_steps: [300000, 400000]
+      * type: two_steps_with_warmup
+      * warm_up_end: 5000
+   * type: AdamW
+* pretrained_weight: None
+* source_filename: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+* speed_benchmark: False
+* test_data:
+   * name: dummy
+   * num_workers: 0
+   * test:
+      * batch_size: 1
+      * is_lmdb: False
+      * roots: None
+   * type: imaginaire.datasets.images
+* timeout_period: 9999999
+* trainer:
+   * amp_config:
+      * backoff_factor: 0.5
+      * enabled: False
+      * growth_factor: 2.0
+      * growth_interval: 2000
+      * init_scale: 65536.0
+   * ddp_config:
+      * find_unused_parameters: False
+      * static_graph: True
+   * depth_vis_scale: 0.5
+   * ema_config:
+      * beta: 0.9999
+      * enabled: False
+      * load_ema_checkpoint: False
+      * start_iteration: 0
+   * grad_accum_iter: 1
+   * image_to_tensorboard: False
+   * init:
+      * gain: None
+      * type: none
+   * loss_weight:
+      * curvature: 0.0005
+      * eikonal: 0.1
+      * render: 1.0
+   * type: projects.neuralangelo.trainer
+* validation_iter: 5000
+* wandb_image_iter: 10000
+* wandb_scalar_iter: 100
+cudnn benchmark: True
+cudnn deterministic: False
+
+Pipeline failed at Neuralangelo stage
+Note: You can still use the VGG-T predictions at: /home/jhennessy7.gatech/scratch/test_run/vggt_output/vggt_predictions_1752432185.pkl
+Input directory: /home/jhennessy7.gatech/scratch/test_run/temp_input
+Images directory: /home/jhennessy7.gatech/scratch/test_run/temp_input/images
+Output directory: /home/jhennessy7.gatech/scratch/test_run
+Found 276 images
+
+✓ Found existing VGG-T predictions: /home/jhennessy7.gatech/scratch/test_run/vggt_output/vggt_predictions_1752432185.pkl
+Skipping VGG-T extraction (use --force-rerun to reprocess)
+
+============================================================
+STEP 2: Converting to Neuralangelo Format
+============================================================
+  - Scene bounds: min=[-1.2362483 -0.725612   0.5755552], max=[1.0047231  0.77414465 2.5263093 ]
+  - Scene center: [-0.11576259  0.02426633  1.5509322 ]
+  - Scene scale: 2.240971326828003
+Created Neuralangelo data directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data
+  - Images: 276 files
+  - Transforms: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_data/transforms.json
+  - Processed 276 frames
+  - First camera: fx=592.63, fy=591.76
+
+Conversion completed in 6.93 seconds
+
+============================================================
+STEP 3: Checking Neuralangelo Data Format
+============================================================
+VGG-T already provided camera poses, skipping COLMAP preprocessing
+Data prepared at: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+
+Preprocessing completed in 5.67 seconds
+
+============================================================
+STEP 4: Running Neuralangelo Neural Surface Reconstruction
+============================================================
+Found training script: train.py
+Creating custom config from template: projects/neuralangelo/configs/custom/template.yaml
+Created custom config: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+  - Data root: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_preprocessed
+  - Number of images: 276
+  - Max iterations: 20000
+Running: /blue/arthur.porto-biocosmos/jhennessy7.gatech/.conda/envs/augenblick/bin/python3 train.py --config /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml --logdir /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output --single_gpu
+Training for 20000 iterations...
+Config file: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output/custom_config.yaml
+Log directory: /home/jhennessy7.gatech/scratch/test_run/neuralangelo_output
