@@ -70,13 +70,13 @@ python benchmark.py \
 ### Training a New Model
 
 To train a complete SuGaR model from scratch:
-## Run this script if you use the VGGT output as input for Sugar
+Run this script if you use the VGGT output as input for Sugar
 ```bash
 python image_undistorter.py 
 
 ```
 
-## Then start the train pipeline
+Then start the train pipeline
 ```bash
 python train_full_pipeline.py \
     --s ./data/YOUR_SCENE/ \
