@@ -1,6 +1,6 @@
-# Augenblick: A Photogrammetry Pipeline based on VGG-T + NeuS2
+# Augenblick: A Photogrammetry Pipeline based on VGG-T + Neuralangelo
 
-A high-quality 3D reconstruction pipeline that combines VGG-T feature extraction with NeuS2 neural surface reconstruction to generate detailed meshed geometry from multi-view images.
+A high-quality 3D reconstruction pipeline that combines VGG-T feature extraction/camera prediction with Neuralangelo neural surface reconstruction to generate detailed meshed geometry from multi-view images.
 
 ## Overview
 
@@ -10,7 +10,7 @@ This pipeline leverages state-of-the-art computer vision and neural rendering te
 
 - **Multi-view stereo reconstruction** with neural implicit surfaces
 - **Robust feature extraction** using VGG-T architecture
-- **High-quality mesh generation** through NeuS2's neural surface reconstruction
+- **High-quality mesh generation** through Neuralangelo's neural surface reconstruction
 - **End-to-end pipeline** from raw images to textured 3D models
 - **Scalable processing** for varying numbers of input views
 
@@ -25,8 +25,8 @@ VGG-T (Vision Graph Neural Network - Transformer) serves as our feature extracti
 - Robust feature matching across viewpoints
 - Camera pose estimation refinement
 
-### 2. NeuS2 Neural Surface Reconstruction
-NeuS2 takes the VGG-T output and performs neural implicit surface reconstruction:
+### 2. Neuralangelo Neural Surface Reconstruction
+Neuralangelo takes the VGG-T camera position output and performs neural implicit surface reconstruction:
 - Learns implicit surface representations from multi-view features
 - Generates high-quality surface normals and geometry
 - Produces watertight meshes with fine detail preservation
@@ -34,10 +34,10 @@ NeuS2 takes the VGG-T output and performs neural implicit surface reconstruction
 
 ### Pipeline Flow
 ```
-Input Images → VGG-T Feature Extraction → Camera Poses + Features → NeuS2 Reconstruction → 3D Mesh Output
+Input Images → VGG-T Feature Extraction → Camera Poses + Features → Neuralangelo Reconstruction → 3D Mesh Output
 ```
 
-The VGG-T component processes input images to extract dense features and estimate camera poses, which are then fed into NeuS2 for volumetric neural surface reconstruction and final mesh generation.
+The VGG-T component processes input images to extract dense features and estimate camera poses, which are then fed into Neuralangelo for volumetric neural surface reconstruction and final mesh generation.
 
 ## Requirements
 
@@ -49,9 +49,9 @@ The VGG-T component processes input images to extract dense features and estimat
 - VS2019, if on Windows
 
 ### Dependencies
-VGG-T and NeuS2 must be configured individually within their subdirectories.
+VGG-T and Neuralangelo must be configured individually within their subdirectories.
 
-See https://github.com/NVlabs/instant-ngp#building-instant-ngp-windows--linux and https://github.com/19reborn/NeuS2 for NeuS2 setup (PyTorch must be installed with CUDA)
+See https://github.com/NVlabs/instant-ngp#building-instant-ngp-windows--linux and https://github.com/NVlabs/neuralangelo for Neuralangelo setup (PyTorch must be installed with CUDA)
 
 See https://github.com/facebookresearch/vggt for VGG-T (mostly just installing python depedencies)
 
@@ -68,7 +68,7 @@ cd augenblick
 conda env create -n augenblick -f environment.yml
 conda actiavte augenblick
 
-cd src/NeuS2
+cd src/Neuralangelo
 git submodule update --init --recursive
 cmake . -B build
 # If above doesn't work, see Troubleshooting below
@@ -99,7 +99,7 @@ python build_pytorch3d_no_pulsar.py
 photogrammetry-pipeline/
 ├── src/
 │   ├── vggt/           # VGG-T implementation
-│   ├── neus2/          # NeuS2 implementation
+│   ├── neuralangelo/          # Neuralangelo implementation
 │   ├── pipeline/       # Main pipeline orchestration
 │   └── utils/          # Utility functions
 ├── config/            # Configuration files
@@ -159,22 +159,6 @@ You will likely benefit from running any build errors through GenAI. However, I 
 
 Note that it is imperative that you run everything on Visual Studio 2019 and in the Developer Command Prompt
 
-### Install vcpkg & use to build NeuS2
-```
-cd C:\
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-.\vcpkg integrate install
-.\vcpkg install pthreads:x64-windows
-
-cd <this repo path>
-cmake . -B build -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
-```
-
-You also may need to manually specify your CUDA include path in the main CMakeLists.txt file, so the conda environment headers do not override the CUDA headers during the build process.
-Locate this line in NeuS2's CMakeLists.txt: `add_library(pyngp SHARED src/python_api.cu)` and below it, add: `target_include_directories(pyngp PRIVATE "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.8/include")` (accounting for your path structure)
-
 ## Examples
 
 ### Sample Datasets
@@ -191,7 +175,7 @@ If you use this pipeline in your research, please cite:
 
 ```bibtex
 @software{photogrammetry_pipeline_2025,
-  title={Photogrammetry Pipeline: VGG-T + NeuS2},
+  title={Photogrammetry Pipeline: VGG-T + Neuralangelo},
   author={[Clinton Kunhardt and James Hennessey and Charles Clark and Caleb Wheeler and Xin Lin and Bree Wang and Arthur Porto]},
   year={2025},
   url={[repository-url]}
@@ -200,14 +184,14 @@ If you use this pipeline in your research, please cite:
 
 ### Related Work Citations
 ```bibtex
-@misc{wang2023neus2fastlearningneural,
-      title={NeuS2: Fast Learning of Neural Implicit Surfaces for Multi-view Reconstruction}, 
-      author={Yiming Wang and Qin Han and Marc Habermann and Kostas Daniilidis and Christian Theobalt and Lingjie Liu},
+@misc{li2023neuralangelohighfidelityneuralsurface,
+      title={Neuralangelo: High-Fidelity Neural Surface Reconstruction}, 
+      author={Zhaoshuo Li and Thomas Müller and Alex Evans and Russell H. Taylor and Mathias Unberath and Ming-Yu Liu and Chen-Hsuan Lin},
       year={2023},
-      eprint={2212.05231},
+      eprint={2306.03092},
       archivePrefix={arXiv},
       primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2212.05231}, 
+      url={https://arxiv.org/abs/2306.03092}, 
 }
 @misc{wang2025vggtvisualgeometrygrounded,
       title={VGGT: Visual Geometry Grounded Transformer}, 
@@ -229,4 +213,4 @@ For questions, issues, or feature requests:
 
 ---
 
-*Last updated: 2025-06-*
+*Last updated: 2025-07-25*

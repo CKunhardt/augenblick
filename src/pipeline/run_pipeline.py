@@ -1,5 +1,5 @@
 # Main script to run the VGGT model pipeline
-# Now saves predictions for NeuS2 conversion
+# Now saves predictions for transforms conversion
 # Adapted from demo_gradio.py with modifications for direct execution
 # Author: Clinton Kunhardt
 
@@ -86,9 +86,9 @@ def run_model(target_dir, model) -> dict:
     torch.cuda.empty_cache()
     return predictions
 
-def save_predictions_for_neus2(predictions, images_raw, output_dir, input_dir):
+def save_predictions_for_transforms(predictions, images_raw, output_dir, input_dir):
     """
-    Save VGG-T predictions in format compatible with NeuS2 converter.
+    Save VGG-T predictions in format compatible with transforms converter.
     
     Args:
         predictions: Dictionary of VGG-T predictions
@@ -96,35 +96,35 @@ def save_predictions_for_neus2(predictions, images_raw, output_dir, input_dir):
         output_dir: Directory to save predictions
         input_dir: Original input directory (for reference)
     """
-    print("Preparing predictions for NeuS2 conversion...")
+    print("Preparing predictions for transforms conversion...")
     
     # Create the predictions dictionary in the format expected by the converter
-    neus2_predictions = {}
+    transforms_predictions = {}
     
     # 1. World points - use both pointmap and depth-based points
     if "world_points" in predictions:
-        neus2_predictions["world_points"] = predictions["world_points"]
+        transforms_predictions["world_points"] = predictions["world_points"]
         print(f"Added world_points: {predictions['world_points'].shape}")
     
     if "world_points_from_depth" in predictions:
-        neus2_predictions["world_points_from_depth"] = predictions["world_points_from_depth"]
+        transforms_predictions["world_points_from_depth"] = predictions["world_points_from_depth"]
         print(f"Added world_points_from_depth: {predictions['world_points_from_depth'].shape}")
     
     # 2. Confidence scores
     if "world_points_conf" in predictions:
-        neus2_predictions["world_points_conf"] = predictions["world_points_conf"]
+        transforms_predictions["world_points_conf"] = predictions["world_points_conf"]
         print(f"Added world_points_conf: {predictions['world_points_conf'].shape}")
     elif "depth_conf" in predictions:
-        neus2_predictions["depth_conf"] = predictions["depth_conf"]
+        transforms_predictions["depth_conf"] = predictions["depth_conf"]
         print(f"Added depth_conf: {predictions['depth_conf'].shape}")
     else:
         # Create uniform confidence if not available
         if "world_points" in predictions:
             conf_shape = predictions["world_points"].shape[:-1]  # Remove last dimension (xyz)
-            neus2_predictions["world_points_conf"] = np.ones(conf_shape, dtype=np.float32)
+            transforms_predictions["world_points_conf"] = np.ones(conf_shape, dtype=np.float32)
             print(f"Created uniform confidence: {conf_shape}")
     
-    # 3. Images - convert back to uint8 format for NeuS2
+    # 3. Images - convert back to uint8 format for transforms
     if images_raw is not None:
         # Assume images_raw is preprocessed tensor (S, C, H, W) normalized to [-1, 1] or [0, 1]
         images_np = images_raw.cpu().numpy()
@@ -144,31 +144,31 @@ def save_predictions_for_neus2(predictions, images_raw, output_dir, input_dir):
             # Already in reasonable range
             images_np = np.clip(images_np, 0, 255).astype(np.uint8)
         
-        neus2_predictions["images"] = images_np
+        transforms_predictions["images"] = images_np
         print(f"Added images: {images_np.shape}")
     
     # 4. Camera matrices
-    neus2_predictions["extrinsic"] = predictions["extrinsic"]
-    neus2_predictions["intrinsic"] = predictions["intrinsic"]
+    transforms_predictions["extrinsic"] = predictions["extrinsic"]
+    transforms_predictions["intrinsic"] = predictions["intrinsic"]
     print(f"Added extrinsic: {predictions['extrinsic'].shape}")
     print(f"Added intrinsic: {predictions['intrinsic'].shape}")
     
     # 5. Additional useful data
     if "depth" in predictions:
-        neus2_predictions["depth"] = predictions["depth"]
+        transforms_predictions["depth"] = predictions["depth"]
         print(f"Added depth: {predictions['depth'].shape}")
     
     if "pose_enc" in predictions:
-        neus2_predictions["pose_enc"] = predictions["pose_enc"]
+        transforms_predictions["pose_enc"] = predictions["pose_enc"]
         print(f"Added pose_enc: {predictions['pose_enc'].shape}")
     
     # 6. Save metadata
-    neus2_predictions["metadata"] = {
+    transforms_predictions["metadata"] = {
         "source": "VGGT",
         "input_dir": input_dir,
         "timestamp": time.time(),
-        "num_frames": neus2_predictions["extrinsic"].shape[0],
-        "image_size": [neus2_predictions["images"].shape[2], neus2_predictions["images"].shape[1]]  # [W, H]
+        "num_frames": transforms_predictions["extrinsic"].shape[0],
+        "image_size": [transforms_predictions["images"].shape[2], transforms_predictions["images"].shape[1]]  # [W, H]
     }
     
     # Save to pickle file
@@ -176,11 +176,11 @@ def save_predictions_for_neus2(predictions, images_raw, output_dir, input_dir):
     predictions_file = os.path.join(output_dir, f"vggt_predictions_{timestamp}.pkl")
     
     with open(predictions_file, 'wb') as f:
-        pickle.dump(neus2_predictions, f)
+        pickle.dump(transforms_predictions, f)
     
-    print(f"✅ Saved VGG-T predictions to: {predictions_file}")
-    print(f"📊 Prediction summary:")
-    for key, value in neus2_predictions.items():
+    print(f"Saved VGG-T predictions to: {predictions_file}")
+    print(f"Prediction summary:")
+    for key, value in transforms_predictions.items():
         if isinstance(value, np.ndarray):
             print(f"  {key}: {value.shape} ({value.dtype})")
         elif key == "metadata":
@@ -226,9 +226,9 @@ def parse_arguments():
     )
     
     parser.add_argument(
-        "--save_for_neus2",
+        "--save_for_transforms",
         action="store_true",
-        help="Save predictions in format suitable for NeuS2 conversion"
+        help="Save predictions in format suitable for transforms conversion"
     )
     
     parser.add_argument(
@@ -277,14 +277,14 @@ def main():
     print(f"Output directory: {output_dir}")
     print(f"Confidence threshold: {args.conf_thres}")
     print(f"Prediction mode: {args.prediction_mode}")
-    print(f"Save for NeuS2: {args.save_for_neus2}")
+    print(f"Save for transforms: {args.save_for_transforms}")
     print(f"Skip GLB: {args.skip_glb}")
     
     try:
         start_time = time.time()
         
-        # ===== MODIFIED SECTION: Capture raw images for NeuS2 =====
-        if args.save_for_neus2:
+        # ===== MODIFIED SECTION: Capture raw images for transforms =====
+        if args.save_for_transforms:
             # Load images separately to keep raw version
             image_names = glob.glob(os.path.join(args.input_dir, "images", "*"))
             image_names = sorted(image_names)
@@ -298,9 +298,9 @@ def main():
         
         print(f"SUCCESS! Processing took {total_time:.2f} seconds")
         
-        # ===== NEW: Save predictions for NeuS2 conversion =====
-        if args.save_for_neus2:
-            predictions_file = save_predictions_for_neus2(
+        # ===== NEW: Save predictions for transforms conversion =====
+        if args.save_for_transforms:
+            predictions_file = save_predictions_for_transforms(
                 predictions, 
                 images_raw, 
                 output_dir, 
@@ -309,13 +309,13 @@ def main():
             
             # Print conversion command
             print("\n" + "="*60)
-            print("🎯 Ready for NeuS2 conversion!")
+            print("Ready for Transforms conversion!")
             print("="*60)
-            print("Run this command to convert to NeuS2 format:")
+            print("Run this command to convert to transforms format:")
             print()
-            print(f"python vggt_to_neus2_converter.py \\")
+            print(f"python vggt_to_transforms_converter.py \\")
             print(f"    {predictions_file} \\")
-            print(f"    ./neus2_data \\")
+            print(f"    ./transforms_data \\")
             print(f"    --images_dir {args.input_dir}/images")
             print()
             print("="*60)

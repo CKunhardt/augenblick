@@ -1,3 +1,6 @@
 [submodule "src/NeuS2"]
 	path = src/NeuS2
 	url = https://github.com/19reborn/NeuS2
+[submodule "src/neuralangelo"]
+	path = src/neuralangelo
+	url = git@github.com:NVlabs/neuralangelo.git

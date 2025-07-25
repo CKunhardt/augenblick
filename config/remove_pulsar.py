@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to remove alland pulsar-related imports from PyTorch3D codebase.
+Script to remove all pulsar-related imports from PyTorch3D codebase.
 This ensures clean imports without pulsar dependencies.
 """
 

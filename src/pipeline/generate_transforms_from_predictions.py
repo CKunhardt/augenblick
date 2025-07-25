@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VGG-T to NeuS2 Converter - Object-Centered Version
+VGG-T to Instant-NGP Transforms Converter - Object-Centered Version
 Uses VGG-T world points to find and center on the actual object of interest
 """
 
@@ -14,12 +14,12 @@ import pickle
 
 def load_vggt_predictions(predictions_path):
     """Load VGG-T predictions from .pkl file"""
-    print(f"📁 Loading VGG-T predictions from: {predictions_path}")
+    print(f"Loading VGG-T predictions from: {predictions_path}")
     
     with open(predictions_path, 'rb') as f:
         predictions = pickle.load(f)
     
-    print(f"📊 Loaded predictions with keys: {list(predictions.keys())}")
+    print(f"Loaded predictions with keys: {list(predictions.keys())}")
     return predictions
 
 def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
@@ -27,7 +27,7 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
     Find the object center using VGG-T's world points.
     This is more accurate than camera ray intersections for object-centric scenes.
     """
-    print("🎯 Finding object center from VGG-T world points...")
+    print("Finding object center from VGG-T world points...")
     
     # Try different world point sources
     world_points = None
@@ -35,22 +35,22 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
     
     if 'world_points' in predictions:
         world_points = predictions['world_points']
-        print(f"   Using world_points: {world_points.shape}")
+        print(f"Using world_points: {world_points.shape}")
         
         if 'world_points_conf' in predictions:
             confidence = predictions['world_points_conf']
-            print(f"   Found confidence: {confidence.shape}")
+            print(f"Found confidence: {confidence.shape}")
     
     elif 'world_points_from_depth' in predictions:
         world_points = predictions['world_points_from_depth']
-        print(f"   Using world_points_from_depth: {world_points.shape}")
+        print(f"Using world_points_from_depth: {world_points.shape}")
         
         if 'depth_conf' in predictions:
             confidence = predictions['depth_conf']
-            print(f"   Found depth confidence: {confidence.shape}")
+            print(f"Found depth confidence: {confidence.shape}")
     
     if world_points is None:
-        print("   ❌ No world points found, cannot determine object center")
+        print("No world points found, cannot determine object center")
         return None, None
     
     # Flatten world points to (N, 3)
@@ -63,10 +63,10 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
         points_flat = world_points
         conf_flat = confidence.reshape(-1) if confidence is not None else None
     else:
-        print(f"   ❌ Unexpected world points shape: {original_shape}")
+        print(f"Unexpected world points shape: {original_shape}")
         return None, None
     
-    print(f"   Total points: {len(points_flat)}")
+    print(f"Total points: {len(points_flat)}")
     
     # Filter out invalid points
     valid_mask = np.all(np.isfinite(points_flat), axis=1)
@@ -75,10 +75,10 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
     # Apply confidence threshold if available
     if conf_flat is not None:
         valid_mask &= (conf_flat > confidence_threshold)
-        print(f"   Points above confidence {confidence_threshold}: {np.sum(valid_mask)}")
+        print(f"Points above confidence {confidence_threshold}: {np.sum(valid_mask)}")
     
     if np.sum(valid_mask) < 100:
-        print(f"   ⚠️ Only {np.sum(valid_mask)} valid points, using lower threshold")
+        print(f"Only {np.sum(valid_mask)} valid points, using lower threshold")
         # Relax criteria if we don't have enough points
         valid_mask = np.all(np.isfinite(points_flat), axis=1)
         valid_mask &= ~np.all(points_flat == 0, axis=1)
@@ -86,10 +86,10 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
     valid_points = points_flat[valid_mask]
     
     if len(valid_points) == 0:
-        print("   ❌ No valid points found")
+        print("No valid points found")
         return None, None
     
-    print(f"   Valid points: {len(valid_points)}")
+    print(f"Valid points: {len(valid_points)}")
     
     # Remove outliers using percentile filtering
     for axis in range(3):
@@ -98,10 +98,10 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
         outlier_mask = (axis_points >= q1) & (axis_points <= q99)
         valid_points = valid_points[outlier_mask]
     
-    print(f"   After outlier removal: {len(valid_points)}")
+    print(f"After outlier removal: {len(valid_points)}")
     
     if len(valid_points) < 50:
-        print("   ⚠️ Very few points after filtering, results may be unreliable")
+        print("Very few points after filtering, results may be unreliable")
     
     # Compute robust center
     object_center = np.median(valid_points, axis=0)
@@ -110,8 +110,8 @@ def find_object_center_from_world_points(predictions, confidence_threshold=0.1):
     distances = np.linalg.norm(valid_points - object_center, axis=1)
     object_extent = np.percentile(distances, 90)
     
-    print(f"   📍 Object center: {object_center}")
-    print(f"   📏 Object extent (90th percentile): {object_extent:.3f}")
+    print(f"Object center: {object_center}")
+    print(f"Object extent (90th percentile): {object_extent:.3f}")
     
     return object_center, object_extent
 
@@ -141,13 +141,13 @@ def extract_camera_params_from_predictions(predictions):
     
     return extrinsics_4x4, intrinsics, focal_lengths, principal_points
 
-def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_dir="output", 
+def convert_vggt_to_transforms_object_centered(predictions_path, images_dir, output_dir="output", 
                                         aabb_scale=128, apply_coordinate_transform=True):
     """
-    Convert VGG-T predictions to NeuS2 format, centering on the object of interest
+    Convert VGG-T predictions to transforms format, centering on the object of interest
     """
     
-    print("🚀 VGG-T to NeuS2 Converter - Object-Centered Version")
+    print(" VGG-T to Transforms Converter - Object-Centered Version")
     print("="*60)
     
     # Load VGG-T predictions
@@ -166,7 +166,7 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
     else:
         h, w = 480, 640  # Default
     
-    print(f"📸 Processing {S} frames of {w}×{h}")
+    print(f"Processing {S} frames of {w}×{h}")
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -184,7 +184,7 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
         if object_center is not None:
             c2w[:3, 3] -= object_center
         
-        # 2. Apply coordinate system transformation for NeRF/NeuS2
+        # 2. Apply coordinate system transformation for NeRF/transforms
         if apply_coordinate_transform:
             # Standard NeRF coordinate transform
             c2w[0:3, 2] *= -1  # flip z axis
@@ -194,27 +194,27 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
         
         c2w_matrices.append(c2w)
     
-    # Determine appropriate scale - match working NeuS2 example
+    # Determine appropriate scale
     camera_positions = np.array([c2w[:3, 3] for c2w in c2w_matrices])
     avg_camera_distance = np.mean(np.linalg.norm(camera_positions, axis=1))
     
-    # Working NeuS2 example has cameras ~2.5-3.0 units from origin
-    # with aabb_scale=1.0 and scale=0.5
-    target_distance = 2.5  # Match working example
+    # NeRF/InstantNGP expects cameras ~1 unit from origin after scaling
+    # Default scale is 0.33, so we adjust based on current scale
+    target_distance = 1.0  # Target average distance from origin
     scene_scale = target_distance / avg_camera_distance if avg_camera_distance > 0 else 1.0
     
     # Apply scaling to all camera positions
     for i in range(S):
         c2w_matrices[i][:3, 3] *= scene_scale
     
-    print(f"📐 Scene scaling:")
-    print(f"   Original avg camera distance: {avg_camera_distance:.3f}")
-    print(f"   Scene scale factor: {scene_scale:.3f}")
-    print(f"   Final avg camera distance: {avg_camera_distance * scene_scale:.3f}")
+    print(f"Scene scaling:")
+    print(f"Original avg camera distance: {avg_camera_distance:.3f}")
+    print(f"Scene scale factor: {scene_scale:.3f}")
+    print(f"Final avg camera distance: {avg_camera_distance * scene_scale:.3f}")
     if object_center is not None:
-        print(f"   Object centered at: {object_center}")
+        print(f"Object centered at: {object_center}")
         if object_extent is not None:
-            print(f"   Object extent: {object_extent:.3f} -> {object_extent * scene_scale:.3f}")
+            print(f"Object extent: {object_extent:.3f} -> {object_extent * scene_scale:.3f}")
     
     # Handle images and create frames
     image_files = [f"{i:06d}.png" for i in range(S)]
@@ -264,8 +264,8 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
         "cy": float(cy),
         "w": w, "h": h,
         "aabb_scale": aabb_scale,
-        "scale": 0.5,  # Match working NeuS2 example
-        "offset": [0.5, 0.5, 0.5],  # Match working NeuS2 example
+        "scale": 1.0,  # We've done our own scaling
+        "offset": [0.0, 0.0, 0.0],  # Object already centered
         "frames": frames
     }
     
@@ -299,7 +299,7 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
             "camera_motion_adequate": bool(np.std(np.linalg.norm(final_camera_positions, axis=1)) > 0.1),
             "object_properly_centered": object_center is not None,
             "scene_scale_appropriate": bool(0.5 < np.mean(np.linalg.norm(final_camera_positions, axis=1)) < 2.0),
-            "ready_for_neus2": object_center is not None
+            "ready_for_transforms": object_center is not None
         }
     }
     
@@ -307,43 +307,43 @@ def convert_vggt_to_neus2_object_centered(predictions_path, images_dir, output_d
     with open(debug_path, 'w') as f:
         json.dump(debug_info, f, indent=2)
     
-    print(f"\n✅ Object-Centered Conversion Complete!")
-    print(f"📁 Output: {output_dir}")
-    print(f"📋 Transform: {transform_path}")
-    print(f"🐛 Debug: {debug_path}")
+    print(f"\nObject-Centered Conversion Complete!")
+    print(f"Output: {output_dir}")
+    print(f"Transform: {transform_path}")
+    print(f"Debug: {debug_path}")
     
-    if debug_info["quality_metrics"]["ready_for_neus2"]:
-        print(f"\n🎯 Object properly centered - ready for NeuS2!")
+    if debug_info["quality_metrics"]["ready_for_transforms"]:
+        print(f"\nObject properly centered - ready for transforms!")
     else:
-        print(f"\n⚠️ Object centering may have issues - check debug file")
+        print(f"\nObject centering may have issues - check debug file")
     
     return debug_info
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert VGG-T predictions to object-centered NeuS2 format")
+    parser = argparse.ArgumentParser(description="Convert VGG-T predictions to object-centered transforms format")
     parser.add_argument("predictions_path", help="Path to VGG-T predictions .pkl file")
-    parser.add_argument("output_dir", help="Output directory for NeuS2 data")
+    parser.add_argument("output_dir", help="Output directory for transforms data")
     parser.add_argument("--images_dir", help="Source directory containing original images (optional)")
-    parser.add_argument("--aabb_scale", type=float, default=1.0, choices=[1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0],
-                       help="Scene scale factor (default 1.0 to match working NeuS2 examples)")
+    parser.add_argument("--aabb_scale", type=int, default=128, choices=[1,2,4,8,16,32,64,128],
+                       help="Scene scale factor (default 128 for natural scenes)")
     parser.add_argument("--confidence_threshold", type=float, default=0.1,
                        help="Confidence threshold for world points")
     
     args = parser.parse_args()
     
     try:
-        debug_info = convert_vggt_to_neus2_object_centered(
+        debug_info = convert_vggt_to_transforms_object_centered(
             args.predictions_path,
             args.images_dir,
             args.output_dir,
             args.aabb_scale
         )
         
-        print(f"\n🚀 Ready for NeuS2 training:")
-        print(f"   python train.py --conf confs/base.conf --data_dir {args.output_dir}")
+        print(f"\nReady for transforms training:")
+        print(f"python train.py --conf confs/base.conf --data_dir {args.output_dir}")
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return 1

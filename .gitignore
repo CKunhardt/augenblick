@@ -159,3 +159,6 @@ skyseg.onnx
 
 # pytorch3d
 pytorch3d/
+pytorch/
+
+.vscode/
