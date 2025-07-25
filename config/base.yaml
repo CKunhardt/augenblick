@@ -1,0 +1,127 @@
+_parent_: ${NEURALANGELO_PATH}/projects/neuralangelo/configs/base.yaml
+
+# Dataset configuration
+data:
+    type: projects.neuralangelo.data
+    root: ${DATA_ROOT}
+    num_images: ${NUM_IMAGES}
+    num_workers: 8
+    preload: true
+    use_multi_epoch_loader: true
+    train:
+        image_size: [4160, 6240]  # Full resolution for B200
+        batch_size: 4  # Smaller batch for more iterations
+        rays_per_image: 8192  # Dense sampling
+        subset: null
+    val:
+        image_size: [2080, 3120]
+        batch_size: 1
+        subset: 1
+        max_viz_samples: 1
+    readjust:
+        center: ${SPHERE_CENTER}
+        scale: ${SPHERE_SCALE}
+
+# Training configuration
+train:
+    batch_size: 4
+    num_images: 4
+    rays_per_image: 8192
+    num_iterations_per_epoch: 1000  # Will be overridden by script
+    checkpoint_interval: 2000
+    gradient_accumulation_steps: 2
+
+# High-res extraction settings
+extraction:
+    mesh_resolution: 16384
+    block_res: 512
+    marching_cubes_isolevel: 0.0
+
+model:
+    object:
+        sdf:
+            mlp:
+                inside_out: false
+                num_layers: 8
+                hidden_dim: 512
+                skip_connections: [4]
+                geometric_init: true
+                weight_norm: true
+                out_bias: 0.5
+                activ: softplus
+                activ_params:
+                    beta: 100
+            encoding:
+                type: hashgrid
+                n_levels: 16
+                n_features_per_level: 2
+                log2_hashmap_size: 22
+                base_resolution: 16
+                per_level_scale: 1.5
+                coarse2fine:
+                    enabled: true
+                    init_active_level: 4
+                    max_active_level: 14
+                    step: 5000
+        rgb:
+            mode: idr
+            encoding_view:
+                levels: 3
+                type: spherical
+            mlp:
+                num_layers: 4
+                hidden_dim: 256
+                skip: []
+                weight_norm: true
+                activ: relu_
+    appear_embed:
+        enabled: false
+    background:
+        enabled: false
+    render:
+        use_mask: true
+        mask_threshold: 0.5
+        n_rays: 32768  # Double rays for B200
+        n_samples: 1024
+        num_samples:
+            coarse: 64
+            fine: 16
+            background: 32
+        stratified: true
+        randomized: true
+        ray_marching_type: uniform
+
+optim:
+    type: AdamW
+    params:
+        lr: 0.0005  # Conservative learning rate
+        betas: [0.9, 0.99]
+        weight_decay: 0.01
+    sched:
+        type: two_steps_with_warmup
+        warm_up_end: 5000
+        two_steps: [30000, 40000]
+        gamma: 10.0
+
+# Training parameters
+max_iter: 50000
+logging_iter: 100
+checkpoint:
+    save_iter: 5000
+    save_latest_iter: 500
+validation_iter: 2500
+
+trainer:
+    type: projects.neuralangelo.trainer
+    loss_weight:
+        render: 1.0
+        render_mask: 0.1
+        eikonal: 0.1
+        curvature: 0.0005
+    amp_config:
+        enabled: true  # Enable mixed precision for B200
+    ema_config:
+        enabled: true
+        beta: 0.95
+        start_iteration: 0
+    grad_accum_iter: 2

@@ -1,0 +1,105 @@
+# Stage 1: Coarse reconstruction (0-2k iterations)
+# Low resolution for fast convergence and rough shape establishment
+
+data:
+  type: projects.neuralangelo.data
+  root: /blue/arthur.porto-biocosmos/jhennessy7.gatech/scratch/neuralangelo_b200_20250721_144006
+  name: transforms.json  # Use converted NeRF-style cameras
+  num_images: 138
+  num_workers: 8
+  preload: false
+  use_multi_epoch_loader: true
+  # Sphere normalization from original config
+  readjust:
+    center: [0.6389583298477574, 0.6039861034655917, 0.5979484190111575]
+    scale: 0.8946571020905045
+  train:
+    batch_size: 1
+    image_size: [512, 768]  # Low resolution for stage 1
+  val:
+    batch_size: 1
+    image_size: [256, 384]
+    subset: 1
+
+model:
+  type: projects.neuralangelo.model
+  background:
+    enabled: false  # Disable background since we have masks
+    white: true
+  object:
+    sdf:
+      encoding:
+        type: hashgrid
+        base_resolution: 16
+        n_features_per_level: 2
+        log2_hashmap_size: 20  # Smaller for stage 1
+        levels: 12  # Fewer levels
+        max_logres: 10  # Lower resolution
+        coarse2fine:
+          enabled: true
+          init_active_level: 4
+          step: 500
+      gradient:
+        mode: numerical
+        taps: 2  # Fast gradient computation
+      mlp:
+        activ: softplus
+        activ_params:
+          beta: 100
+        hidden_dim: 128  # Smaller network
+        num_layers: 4
+        skip: [2]
+        checkpoint: true  # Gradient checkpointing
+        geometric_init: true
+        weight_norm: true
+    rgb:
+      mode: idr
+      encoding_view:
+        type: spherical
+        levels: 3
+      mlp:
+        activ: relu_
+        hidden_dim: 64
+        num_layers: 3
+        weight_norm: true
+  render:
+    num_samples:
+      coarse: 64
+      fine: 0  # No fine sampling in stage 1
+      background: 0  # No background samples
+    rand_rays: 512
+    stratified: true
+    mask_background: true  # Only sample inside masks
+
+trainer:
+  type: projects.neuralangelo.trainer
+  amp_config:
+    enabled: true
+    init_scale: 65536.0
+  grad_accum_iter: 4
+  loss_weight:
+    render: 1.0
+    eikonal: 0.1
+    curvature: 0.0001  # Low for initial stage
+  skip_initial_validation: true
+
+optim:
+  type: AdamW
+  params:
+    lr: 0.003  # High learning rate for initial convergence
+    weight_decay: 0.01
+  sched:
+    type: two_steps_with_warmup
+    warm_up_end: 200
+    two_steps: [1500, 1800]
+
+# Training settings
+max_iter: 2000
+logging_iter: 50
+checkpoint:
+  save_iter: 500
+  save_latest_iter: 100
+
+# Disable expensive operations
+validation_iter: 500
+image_save_iter: 9999999

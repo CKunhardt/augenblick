@@ -1,0 +1,110 @@
+
+--- masked_reconstruction_vggt.py.original
++++ masked_reconstruction_vggt.py.b200_optimized
+@@ -847,17 +847,18 @@
+ def calculate_training_params(gpu_memory_gb: int, num_images: int, max_steps: int = 50000) -> Dict[str, Any]:
+     """Calculate optimal batch size and ray count based on GPU memory"""
+     if gpu_memory_gb >= 160:
+-        # B200 or better
+-        num_images_per_batch = min(num_images, 8, 10)
++        # B200 or better - OPTIMIZED FOR HIGH-RES SPECIMEN
++        num_images_per_batch = min(num_images, 16)  # Doubled
+         rays_per_batch = 16384
+-        train_image_size = [2080, 3120]
+-        val_image_size = [1040, 1560]
++        rays_per_image = 4096  # Dense sampling
++        train_image_size = [4160, 6240]  # Full resolution
++        val_image_size = [2080, 3120]
+     elif gpu_memory_gb >= 80:
+         # A100/H100 class
+         num_images_per_batch = min(num_images, 8)
+         rays_per_batch = 8192
+-        train_image_size = [1560, 2340]
+-        val_image_size = [780, 1170]
++        rays_per_image = 2048
++        train_image_size = [1560, 2340]
++        val_image_size = [780, 1170]
+     elif gpu_memory_gb >= 40:
+         # A6000/A40 class  
+@@ -872,8 +873,9 @@
+         val_image_size = [520, 780]
+     
+     # Calculate rays per image
+-    rays_per_image = rays_per_batch // num_images_per_batch
++    if 'rays_per_image' not in locals():
++        rays_per_image = rays_per_batch // num_images_per_batch
+     
+     # Adjust iterations for large batches
+     if num_images_per_batch >= 8:
+@@ -920,6 +922,19 @@
+     
+     config_content = f"""_parent_: {neuralangelo_source}/projects/neuralangelo/configs/base.yaml
+ 
++# B200 Training optimizations
++train:
++    num_iterations_per_epoch: 340  # 20x more iterations
++    checkpoint_interval: 2000
++    
++data:
++    type: projects.neuralangelo.data
++    root: {neuralangelo_dir}
++    num_images: {params['num_images_per_batch']}
++    num_workers: 4
++    preload: true  # Cache for B200 memory
++
++# Model configuration
+ model:
+     object:
+         sdf:
+@@ -928,6 +943,7 @@
+             encoding:
+                 coarse2fine:
+                     init_active_level: 4
++                    max_active_level: 12  # Higher for detail
+     appear_embed:
+         enabled: false
+     background:
+@@ -937,10 +953,6 @@
+         mask_threshold: 0.5
+         n_rays: {params['rays_per_batch']}
+ 
+-data:
+-    type: projects.neuralangelo.data
+-    root: {neuralangelo_dir}
+-    num_images: {params['num_images_per_batch']}
+     train:
+         image_size: {params['train_image_size']}
+         batch_size: {params['num_images_per_batch']}
+@@ -953,6 +965,11 @@
+         max_viz_samples: 1
+ {readjust_section}
+ 
++# High-res extraction
++extraction:
++    mesh_resolution: 16384
++    block_res: 512
++
+ optim:
+     params:
+         lr: 5e-4
+@@ -971,6 +988,8 @@
+         curvature: 5e-4
+ """
+ 
++logging:
++    iter_log: 100  # Less frequent logging
+ 
+ @@ -810,6 +827,13 @@
+         if result.returncode == 0:
+             memory_mb = float(result.stdout.strip())
+-            return int(memory_mb / 1024)
++            memory_gb = int(memory_mb / 1024)
++            
++            # Check if B200
++            name_result = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader", f"--id={gpu_index}"], 
++                                       capture_output=True, text=True)
++            if "B200" in name_result.stdout:
++                logger.info("Detected B200 GPU - enabling high-res optimizations")
++            return memory_gb
+     except:
+         pass

@@ -1,0 +1,59 @@
+==============================================
+Neuralangelo Stable Training
+Output: /blue/arthur.porto-biocosmos/jhennessy7.gatech/neural_stable_20250717_030139
+Port: 29563
+==============================================
+Copying data...
+Data ready: 138 images
+Config: config_b200_optimal.yaml (150k iterations)
+
+Starting training with torchrun...
+This will take 8-12 hours for 150k iterations
+
+Training PID: 3013012
+Waiting for training to initialize...
+Training process ended. Checking log...
+[W717 03:01:48.817634516 Utils.hpp:137] Warning: Environment variable NCCL_ASYNC_ERROR_HANDLING is deprecated; use TORCH_NCCL_ASYNC_ERROR_HANDLING instead (function operator())
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 104, in <module>
+[rank0]:     main()
+[rank0]:   File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/train.py", line 58, in main
+[rank0]:     init_dist(cfg.local_rank, rank=-1, world_size=-1)
+[rank0]:   File "/home/jhennessy7.gatech/augenblick/src/neuralangelo/imaginaire/utils/distributed.py", line 30, in init_dist
+[rank0]:     _libcudart = ctypes.CDLL('libcudart.so')
+[rank0]:   File "/usr/lib64/python3.9/ctypes/__init__.py", line 374, in __init__
+[rank0]:     self._handle = _dlopen(self._name, mode)
+[rank0]: OSError: libcudart.so: cannot open shared object file: No such file or directory
+[rank0]:[W717 03:01:48.966411825 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+E0717 03:01:48.933429 3013012 torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 0 (pid: 3013078) of binary: /home/jhennessy7.gatech/neuralangelo_b200_env/bin/python3
+Traceback (most recent call last):
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/lib64/python3.9/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/lib64/python3.9/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/lib64/python3.9/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/lib64/python3.9/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/home/jhennessy7.gatech/neuralangelo_b200_env/lib64/python3.9/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-07-17_03:01:48
+  host      : c0900a-s15.ufhpc
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 3013078)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+
+Session info saved to: /blue/arthur.porto-biocosmos/jhennessy7.gatech/neural_stable_20250717_030139/session_info.txt
