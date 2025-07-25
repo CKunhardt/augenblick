@@ -1,4 +1,4 @@
-name: augenblick
+name: augenblick2
 channels:
   - pytorch
   - nvidia
