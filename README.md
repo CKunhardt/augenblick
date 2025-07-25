@@ -70,26 +70,12 @@ conda actiavte augenblick
 
 cd src/Neuralangelo
 git submodule update --init --recursive
-cmake . -B build
-# If above doesn't work, see Troubleshooting below
-cmake --build build --config RelWithDebInfo -j 
+
+conda env create --file neuralangelo.yaml
+# conda activate neuralangelo (when you're ready to work with neuralangelo)
 
 cd ../data
 # Install datasets here, i.e. https://roboimagedata.compute.dtu.dk/?page_id=36
-
-# Note: you will have to install pytorch3d manually
-# Depending on your platform, this can be varying degrees of complex
-
-# Windows:
-# First step is to clone the pytorch3d repo here, and then run the following
-# Note you need to be on an administrator Developer Command Prompt
-python config\\fix.py
-cd pytorch3d
-git checkout 3388d3
-rmdir /s /q pytorch3d\csrc\pulsar
-if exist pytorch3d\renderer\points\pulsar rmdir /s /q pytorch3d\renderer\points\pulsar
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-python build_pytorch3d_no_pulsar.py
 ```
 
 ## Project Structure
@@ -99,14 +85,14 @@ python build_pytorch3d_no_pulsar.py
 photogrammetry-pipeline/
 ├── src/
 │   ├── vggt/           # VGG-T implementation
-│   ├── neuralangelo/          # Neuralangelo implementation
+│   ├── neuralangelo/   # Neuralangelo implementation
 │   ├── pipeline/       # Main pipeline orchestration
 │   └── utils/          # Utility functions
-├── config/            # Configuration files
-├── data/              # Sample data and datasets
-├── output/           # Generated outputs
-├── tests/             # Unit tests
-└── docs/              # Additional documentation
+├── config/             # Configuration files
+├── data/               # Sample data and datasets
+├── output/             # Generated outputs
+├── tests/              # Unit tests
+└── docs/               # Additional documentation
 ```
 
 ## Usage
